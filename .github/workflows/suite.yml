@@ -1,0 +1,136 @@
+# Layer 2: runs on the test machine itself, through a self-hosted runner.
+#
+# This is the one that actually drives POSAPP and the back-office apps, so
+# it can only run where those are reachable and a desktop session exists.
+#
+# Install the runner as a STARTUP TASK FOR THE LOGGED-IN USER, not as a Windows
+# service: a service runs in session 0, which has no desktop, and every exe
+# suite would fail with "window not found".
+#
+# Every step is PowerShell on purpose. GitHub's own Windows runners carry Git
+# Bash on PATH; a self-hosted machine usually does not, and the first run here
+# failed with "bash: command not found". Windows PowerShell is always present,
+# so the workflow depends on nothing that has to be installed.
+#
+# The machine keeps its own .env - nothing secret is stored in GitHub.
+name: suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Which suite to run
+        type: choice
+        default: session
+        options: [positive, negative, session, credit, audit, backoffice-demostore, backoffice-storeb]
+      headed:
+        description: Show the browser (back-office suites only)
+        type: boolean
+        default: false
+  # schedule:   (enable on a repo that has a self-hosted runner)
+    # 02:30 Dhaka (UTC+6) every weekday - the machine is idle and nobody is
+    # using the counter, so a run cannot collide with manual testing.
+  #   - cron: "30 20 * * 0-4"
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: ${{ inputs.suite || 'session' }}
+    runs-on: [self-hosted, windows, pos]
+    timeout-minutes: 120
+
+    defaults:
+      run:
+        shell: powershell
+        working-directory: pos_framework/pos_framework
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runner checks the repo out into a fresh _work folder every time.
+      # The virtualenv and .env are deliberately not in the repo, so the job
+      # is told where this machine keeps them: C:\actions-runner\.env sets
+      # POS_VENV and POS_ENV_FILE, and the runner injects both into the job.
+      # Nothing secret ever reaches GitHub.
+      - name: The machine is set up as expected
+        run: |
+          if (-not $env:POS_VENV -or -not $env:POS_ENV_FILE) {
+            Write-Output "::error::POS_VENV / POS_ENV_FILE are not set. Put them in C:\actions-runner\.env and restart the runner."
+            exit 1
+          }
+          $py = Join-Path $env:POS_VENV "Scripts\python.exe"
+          if (-not (Test-Path $py)) {
+            Write-Output "::error::no python at $py"
+            exit 1
+          }
+          if (-not (Test-Path $env:POS_ENV_FILE)) {
+            Write-Output "::error::no credentials file at $env:POS_ENV_FILE"
+            exit 1
+          }
+          # the suites read .env from beside themselves, so bring it in
+          Copy-Item $env:POS_ENV_FILE ".env" -Force
+          Write-Output "python : $py"
+          & $py -c "import pywinauto, playwright, pyodbc, allure; print('dependencies ok')"
+          "PY=$py" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Pick the suite
+        id: pick
+        run: |
+          $suite = "${{ inputs.suite || 'session' }}"
+          switch ($suite) {
+            "positive" { $a = "positive_tests/test_pos_full.py" }
+            "negative" { $a = "negative_tests/test_negative_positive_flow.py" }
+            "session"  { $a = "session_tests/test_session_open_close.py" }
+            "credit"   { $a = "credit_tests" }
+            "audit"    { $a = "audit_tests/test_audit_multi_scope.py" }
+            "backoffice-demostore" { $a = "backoffice -c backoffice/pytest.ini --app demostore" }
+            "backoffice-storeb"         { $a = "backoffice -c backoffice/pytest.ini --app storeb" }
+            default    { $a = "session_tests/test_session_open_close.py" }
+          }
+          Write-Output "running: $suite  ->  $a"
+          "args=$a"                  | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "results=allure-results-ci" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Close POSAPP so the run starts clean
+        continue-on-error: true
+        run: |
+          try { Get-Process -Name "*POSAPP*" -ErrorAction Stop | Stop-Process -Force } catch {}
+          Write-Output "app closed (or was not running)"
+
+      - name: Run it
+        env:
+          PYTHONIOENCODING: utf-8
+          HEADED: ${{ inputs.headed }}
+        run: |
+          $results = "${{ steps.pick.outputs.results }}"
+          if (Test-Path $results) { Remove-Item -Recurse -Force $results }
+          # the suite argument can carry flags, so split it into real arguments
+          $pytestArgs = "${{ steps.pick.outputs.args }}" -split '\s+'
+          & $env:PY -m pytest @pytestArgs --alluredir="$results" -v
+          exit $LASTEXITCODE
+
+      - name: Keep the results either way
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-${{ inputs.suite || 'session' }}-${{ github.run_number }}
+          path: pos_framework/pos_framework/${{ steps.pick.outputs.results }}
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Keep the screenshots of a failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shots-${{ inputs.suite || 'session' }}-${{ github.run_number }}
+          path: pos_framework/pos_framework/**/shots/**
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Leave the app closed
+        if: always()
+        continue-on-error: true
+        run: |
+          try { Get-Process -Name "*POSAPP*" -ErrorAction Stop | Stop-Process -Force } catch {}

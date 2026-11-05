@@ -1,0 +1,98 @@
+# ---------------------------------------------------------------
+# Secrets - never commit. Copy .env.example to .env and fill it in.
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+**/token.json
+**/state.json
+**/storage_state.json
+
+# ---------------------------------------------------------------
+# Virtual environment (regenerable from requirements.txt)
+# ---------------------------------------------------------------
+venv/
+env/
+.venv/
+
+# ---------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# ---------------------------------------------------------------
+# Test output - regenerated on every run, never source
+# ---------------------------------------------------------------
+allure-results*/
+allure-report*/
+**/allure-results*/
+**/allure-report*/
+
+# Screenshots a run leaves behind. Screenshots that belong to a bug
+# report are kept - they live under backoffice/bug-reports/ and are
+# re-included at the bottom of this file.
+**/shots/
+**/screenshots/
+**/videos/
+**/traces/
+
+# Runtime handoff between the positive flow and the web verification
+web_verify_data.json
+
+# ---------------------------------------------------------------
+# Dashboard runtime state
+# ---------------------------------------------------------------
+pos_framework/dashboard/dashboard.log
+pos_framework/dashboard/dashboard.err
+pos_framework/dashboard/run_history.json
+pos_framework/dashboard/reports/
+pos_framework/reports/
+
+# ---------------------------------------------------------------
+# Local databases and backups - data, not code, and often large
+# ---------------------------------------------------------------
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.bak
+**/db_backups/
+pos_framework/pos_framework/audit_tests/backups/
+
+# ---------------------------------------------------------------
+# Scratch and tooling artifacts
+# ---------------------------------------------------------------
+scratchpad/
+graphify-out/
+.graphifyignore
+.tokensave/
+.claude/settings.local.json
+node_modules/
+*.log
+
+# ---------------------------------------------------------------
+# OS / editor
+# ---------------------------------------------------------------
+Thumbs.db
+desktop.ini
+.DS_Store
+.idea/
+.vscode/
+
+# ---------------------------------------------------------------
+# Kept on purpose: the evidence that belongs to a bug report.
+# These rules come last so they win over the patterns above.
+# ---------------------------------------------------------------
+!pos_framework/pos_framework/backoffice/bug-reports/**/*.png
+!pos_framework/pos_framework/backoffice/bug-reports/**/*.pdf
+!pos_framework/pos_framework/backoffice/bug-reports/**/*.json
+!pos_framework/pos_framework/backoffice/bug-reports/**/shots/
+!pos_framework/pos_framework/backoffice/bug-reports/**/shots/**
+
+# README images (curated, not run output)
+!docs/screenshots/

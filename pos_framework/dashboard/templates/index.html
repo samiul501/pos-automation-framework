@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retail POS · Automation Console</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { darkMode: 'class', theme: { extend: {
+    fontFamily: { sans: ['Inter', 'Segoe UI', 'system-ui', 'sans-serif'], mono: ['JetBrains Mono', 'Cascadia Code', 'Consolas', 'monospace'] },
+    colors: { ink: { 950:'#070b14', 900:'#0b1020', 850:'#0f1629', 800:'#131c33', 700:'#1c2742', 600:'#26334f' } },
+    boxShadow: { glow: '0 0 0 1px rgba(99,102,241,.35), 0 12px 40px -12px rgba(99,102,241,.45)' },
+  } } };
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="bg-ink-950 text-slate-200 font-sans antialiased min-h-screen">
+<div class="bg-grid"></div>
+
+<!-- ============ top bar ============ -->
+<header class="sticky top-0 z-30 backdrop-blur bg-ink-950/70 border-b border-white/5">
+  <div class="mx-auto max-w-[1500px] px-5 h-16 flex items-center gap-4">
+    <div class="flex items-center gap-3">
+      <!-- the official POS App logo, shown as-is: no tile behind it (that
+           muddied it), rendered at its natural badge size with a soft ring -->
+      <span class="brand-mark" title="POS App">
+        <img src="{{ url_for('static', filename='logo.png') }}?v=2" alt="POS App" width="48" height="48" onerror="this.remove()">
+      </span>
+      <div>
+        <div class="font-bold tracking-tight text-[16px] leading-tight">Retail POS <span class="text-slate-500 font-medium">·</span> Automation Console</div>
+        <div class="text-[11px] text-slate-500">pos_framework · exe + web + audit suites</div>
+      </div>
+    </div>
+
+    <div class="ml-auto flex items-center gap-2">
+      <div class="author hidden sm:flex" title="Built and maintained by Samiul Islam">
+        <span class="author-avatar">SI</span>
+        <span class="author-text"><b>Samiul Islam</b><small>Junior SQA</small></span>
+      </div>
+      <div id="pill-db" class="pill pill-unknown"><span class="dot"></span><span class="pill-text">DB</span></div>
+      <div id="pill-app" class="pill pill-unknown"><span class="dot"></span><span class="pill-text">POS app</span></div>
+      <div id="clock" class="hidden md:block text-xs font-mono text-slate-500 tabular-nums w-[72px] text-right"></div>
+    </div>
+  </div>
+</header>
+
+<main class="mx-auto max-w-[1500px] px-5 py-6 grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+
+  <!-- ============ left: suites ============ -->
+  <aside class="space-y-4">
+    <div class="flex items-baseline justify-between">
+      <h2 class="section-title">Suites</h2>
+      <span class="text-[11px] text-slate-500">one at a time · same desktop app</span>
+    </div>
+
+    {% set grouped = suites.items() | selectattr('1.group') | list %}
+    {% if grouped %}
+    {% set group_name = grouped[0][1].group %}
+    <div class="suite-folder" data-folder="exe-setup">
+      <button type="button" class="folder-head" aria-expanded="false">
+        <span class="suite-icon icon-setup">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v4M12 17v4M4.9 7.5l2.9 2.9M16.2 13.6l2.9 2.9M3 12h4M17 12h4M4.9 16.5l2.9-2.9M16.2 10.4l2.9-2.9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg>
+        </span>
+        <span class="min-w-0 flex-1 text-left">
+          <span class="block font-semibold text-[14px]">{{ group_name }}</span>
+          <span class="block text-[12px] text-slate-400 leading-snug mt-0.5">The chores before testing &mdash; {{ grouped | length }} one-click tasks</span>
+        </span>
+        <span class="folder-env" onclick="event.stopPropagation()">
+          <select id="setup-env" title="Which back office to take the token from">
+            <option value="demostore">devdemostore</option>
+            <option value="storec">StoreC</option>
+          </select>
+        </span>
+        <span class="folder-chevron">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </button>
+
+      <div class="folder-body">
+        <div class="folder-inner">
+        {% for key, suite in grouped %}
+        <button class="suite-card group" data-suite="{{ key }}" data-has-options="0" data-label="{{ suite.label }}">
+          <div class="flex items-start gap-3">
+            <span class="suite-icon icon-{{ suite.icon }}">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v4M12 17v4M4.9 7.5l2.9 2.9M16.2 13.6l2.9 2.9M3 12h4M17 12h4M4.9 16.5l2.9-2.9M16.2 10.4l2.9-2.9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg>
+            </span>
+            <div class="min-w-0 flex-1">
+              <span class="font-semibold text-[14px] truncate">{{ suite.label }}</span>
+              <div class="text-[12px] text-slate-400 leading-snug mt-0.5">{{ suite.description }}</div>
+              <div class="mt-2 flex items-center gap-2 text-[11px]" data-last="{{ key }}">
+                <span class="text-slate-600">never run</span>
+              </div>
+            </div>
+            <span class="suite-run">Run</span>
+          </div>
+        </button>
+        {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% for key, suite in suites.items() if not suite.hidden and not suite.group %}
+    {% set lr = last.get(key) %}
+    <button class="suite-card group" data-suite="{{ key }}" data-has-options="{{ 1 if suite.has_options else 0 }}" data-label="{{ suite.label }}">
+      <div class="flex items-start gap-3">
+        <span class="suite-icon icon-{{ suite.icon }}">
+          {% if suite.icon == 'check' %}
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          {% elif suite.icon == 'shield' %}
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9.5 12l2 2 3.5-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          {% elif suite.icon == 'layers' %}
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4-8 4-8-4 8-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 12l8 4 8-4M4 16l8 4 8-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          {% elif suite.icon == 'setup' %}
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v4M12 17v4M4.9 7.5l2.9 2.9M16.2 13.6l2.9 2.9M3 12h4M17 12h4M4.9 16.5l2.9-2.9M16.2 10.4l2.9-2.9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg>
+          {% elif suite.icon == 'session' %}
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="13" r="7.5" stroke="currentColor" stroke-width="2"/><path d="M12 9.5V13l2.5 1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 2.5h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          {% elif suite.icon == 'audit' %}
+            <svg viewBox="0 0 24 24" fill="none"><path d="M9 4h6l1 2h3v14H5V6h3l1-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 11h8M8 15h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15.5 14.5l1.5 1.5 2.5-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          {% else %}
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2"/><path d="M3.5 12h17M12 3.5c2.2 2.3 3.5 5.3 3.5 8.5s-1.3 6.2-3.5 8.5c-2.2-2.3-3.5-5.3-3.5-8.5S9.8 5.8 12 3.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          {% endif %}
+        </span>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-[14px] truncate">{{ suite.label }}</span>
+            {% if suite.has_options %}<span class="tag tag-indigo">options</span>{% endif %}
+          </div>
+          <div class="text-[12px] text-slate-400 leading-snug mt-0.5">{{ suite.description }}</div>
+          <div class="mt-2 flex items-center gap-2 text-[11px]" data-last="{{ key }}">
+            <span class="text-slate-600">never run</span>
+          </div>
+        </div>
+        <span class="suite-run">{{ 'Configure' if suite.has_options else 'Run' }}</span>
+      </div>
+    </button>
+    {% endfor %}
+
+    <!-- Load test: ONE card, two one-click modes. load_online / load_offline
+         are real suites (hidden from the loop above) rendered together here,
+         so a single card holds both. They keep class "suite-card" + data-suite,
+         so the existing run / disable / is-running / last-run JS just works. -->
+    <div class="combo-card">
+      <div class="combo-head">
+        <span class="suite-icon icon-layers">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4-8 4-8-4 8-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 12l8 4 8-4M4 16l8 4 8-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <div class="min-w-0 flex-1">
+          <span class="font-semibold text-[14px]">Load Test</span>
+          <div class="text-[12px] text-slate-400 leading-snug mt-0.5">Drive the exe through 30 sales &times; 4 customers &mdash; pick a mode</div>
+        </div>
+      </div>
+      <div class="combo-modes">
+        <button class="suite-card combo-mode group" data-suite="load_online" data-has-options="0" data-label="Load Test - Online">
+          <div class="flex items-center gap-2">
+            <span class="suite-icon icon-globe" style="height:30px;width:30px">
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2"/><path d="M3.5 12h17M12 3.5c2.2 2.3 3.5 5.3 3.5 8.5s-1.3 6.2-3.5 8.5c-2.2-2.3-3.5-5.3-3.5-8.5S9.8 5.8 12 3.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            </span>
+            <div class="min-w-0 flex-1">
+              <div class="font-semibold text-[13px]">Online</div>
+              <div class="text-[11px] mt-0.5" data-last="load_online"><span class="text-slate-600">never run</span></div>
+            </div>
+            <span class="suite-run">Run</span>
+          </div>
+        </button>
+        <button class="suite-card combo-mode group" data-suite="load_offline" data-has-options="0" data-label="Load Test - Offline">
+          <div class="flex items-center gap-2">
+            <span class="suite-icon icon-session" style="height:30px;width:30px">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 3a9 9 0 1 0 9 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 3l2 2-2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <div class="min-w-0 flex-1">
+              <div class="font-semibold text-[13px]">Offline</div>
+              <div class="text-[11px] mt-0.5" data-last="load_offline"><span class="text-slate-600">never run</span></div>
+            </div>
+            <span class="suite-run">Run</span>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Back office: not buttons but pages. These suites are many small
+         checks across several modules against two different servers, so
+         "run it and watch one bar" is the wrong shape - each environment
+         gets a page that shows what is covered and lets any part of it
+         be re-run. The tiles come from the profile registry, so a new
+         profiles/<app>.py shows up here on its own. -->
+    {% if backoffice_apps %}
+    <div class="flex items-baseline justify-between pt-2">
+      <h2 class="section-title">Back office</h2>
+      <span class="text-[11px] text-slate-500">one suite · {{ backoffice_apps|length }} servers</span>
+    </div>
+    <div class="space-y-2">
+      {% for env in backoffice_apps %}
+      <a href="/backoffice/{{ env.key }}" class="bo-tile">
+        <div class="flex items-center gap-2">
+          <span class="bo-tile-name">{{ env.label }}</span>
+          <span class="tag tag-slate">{{ env.screens|length }} screens</span>
+          {% if not env.has_credentials %}<span class="tag tag-amber">no credentials</span>{% endif %}
+          <span class="ml-auto text-slate-500 text-[13px]">&rsaquo;</span>
+        </div>
+        <div class="bo-tile-url">{{ env.base_url }}</div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Per-branch switches. VAT-inclusive decides whether a rate typed
+         into Purchase Receive already contains VAT or has it added on
+         top, and it is set per branch - so it is offered per branch,
+         with no "apply to all". -->
+    <div class="flex items-baseline justify-between pt-2">
+      <h2 class="section-title">Branch settings</h2>
+      <span class="text-[11px] text-slate-500">dbo.Branch &middot; per outlet</span>
+    </div>
+    <div class="card" id="branch-card">
+      <!-- Collapsed by default: eight outlets is a long list to carry on
+           screen for a switch that is touched rarely. The summary line
+           says how they stand without opening it. -->
+      <button id="branch-toggle" class="branch-head" aria-expanded="false">
+        <span class="chevron" id="branch-chevron">&rsaquo;</span>
+        <span class="min-w-0 text-left">
+          <span class="block font-semibold text-[13px]">Price includes VAT</span>
+          <span class="block text-[11px] text-slate-500 font-mono">IsVATInclusive</span>
+        </span>
+        <span id="branch-summary" class="ml-auto text-[11px] text-slate-400">&hellip;</span>
+      </button>
+
+      <div id="branch-body" hidden>
+        <div class="text-[11px] text-slate-400 mt-3">
+          ON: the rate already contains VAT and it is extracted out.
+          OFF: VAT is added on top, the way a supplier invoice states it.
+        </div>
+        <div id="branch-list" class="mt-3 space-y-1.5">
+          <div class="text-[11px] text-slate-500">reading branches&hellip;</div>
+        </div>
+        <div class="flex items-center gap-2 mt-3">
+          <button id="branch-refresh" class="btn btn-ghost btn-xs">Refresh</button>
+          <span id="branch-note" class="text-[11px] text-slate-400"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- exe settings: the switches the POS exe keeps only in its own local cache -->
+    <div class="flex items-baseline justify-between pt-2">
+      <h2 class="section-title">POS exe settings</h2>
+      <span id="exe-pkg" class="text-[11px] text-slate-500" title="installed version · package hash"></span>
+    </div>
+    <div class="card" id="exe-card">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="font-semibold text-[13px]">Group-only product discount</div>
+          <div class="text-[11px] text-slate-500 font-mono">IsCustomerGroupInProductDiscount</div>
+        </div>
+        <label class="switch" title="ON: a product discount applies only to its assigned customer group. OFF: everyone gets it.">
+          <input id="exe-group-flag" type="checkbox" disabled>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div id="exe-flag-note" class="text-[11px] text-slate-400 mt-2">reading exe cache…</div>
+      <label class="text-[11px] text-slate-400 flex items-center gap-1.5 mt-3" title="Before every exe suite (after the exe is closed) force the flag ON, so a reinstall can never silently change what the suites test">
+        <input id="exe-group-pin" type="checkbox" class="accent-indigo-500"> keep ON before every exe run
+      </label>
+      <div class="mt-3 pt-3 border-t border-white/5">
+        <div class="font-semibold text-[13px]">Print invoice template</div>
+        <div class="text-[11px] text-slate-500">writes the server (dbo.Account) and the exe cache together</div>
+        <div class="mt-2 flex items-center gap-2">
+          <select id="exe-inv-select" class="inv-select" disabled title="Every sale/reprint .rdlc pair shipped in the installed exe"></select>
+          <button id="exe-inv-apply" class="btn btn-primary" disabled>Apply</button>
+        </div>
+        <div id="exe-inv-note" class="text-[11px] text-slate-400 mt-2"></div>
+        <div class="mt-2 text-[11px] text-slate-500 space-y-0.5">
+          <div>exe cache: <span id="exe-inv" class="font-mono text-slate-300">–</span></div>
+          <div>server: <span id="exe-inv-srv" class="font-mono text-slate-300">–</span></div>
+          <div>reprint: <span id="exe-inv-re" class="font-mono text-slate-300">–</span></div>
+          <div>counter: <span id="exe-counter" class="font-mono text-slate-300">–</span></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ right: run ============ -->
+  <section class="space-y-6 min-w-0">
+
+    <!-- active run -->
+    <div class="card">
+      <div class="flex flex-wrap items-center gap-3">
+        <span id="status-badge" class="badge badge-idle">Idle</span>
+        <div class="min-w-0">
+          <div id="status-title" class="font-semibold text-[15px] truncate">No run yet</div>
+          <div id="status-sub" class="text-[12px] text-slate-500">Pick a suite on the left.</div>
+        </div>
+        <div class="ml-auto flex items-center gap-2">
+          <label id="email-wrap" class="mail-toggle" title="Send the summary mail to the dev team when the suite finishes">
+            <input id="email-toggle" type="checkbox" class="accent-indigo-500">
+            <span>📧 Email devs on finish</span>
+            <span id="mail-cfg" class="tag tag-amber hidden">not configured</span>
+          </label>
+          <a href="/api/mail-preview" target="_blank" class="btn btn-ghost" title="See the mail body in the browser">Preview mail</a>
+          <span id="elapsed" class="font-mono text-sm text-slate-400 tabular-nums"></span>
+          <a id="report-link" href="/report/" target="_blank" class="btn btn-primary hidden">Allure report ↗</a>
+          <button id="stop-btn" class="btn btn-danger" disabled>■ Stop</button>
+          <button id="reset-btn" class="btn btn-ghost" title="Clear the run panel, log and suite cards back to the initial state">↺ Reset</button>
+        </div>
+      </div>
+
+      <!-- progress -->
+      <div class="mt-5">
+        <div class="flex items-center justify-between text-[11px] text-slate-500 mb-1.5">
+          <span id="progress-text">—</span>
+          <span id="current-test" class="font-mono truncate max-w-[60%]"></span>
+        </div>
+        <div class="progress"><div id="bar-pass" class="bar bar-pass"></div><div id="bar-fail" class="bar bar-fail"></div></div>
+      </div>
+
+      <!-- audit timeline -->
+      <div id="timeline" class="timeline hidden"></div>
+
+      <!-- stat tiles -->
+      <div class="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="tile"><div class="tile-k">Passed</div><div id="k-pass" class="tile-v text-emerald-400">0</div></div>
+        <div class="tile"><div class="tile-k">Failed</div><div id="k-fail" class="tile-v text-rose-400">0</div></div>
+        <div class="tile"><div class="tile-k">Errors / skipped</div><div id="k-err" class="tile-v text-amber-300">0 / 0</div></div>
+        <div class="tile"><div class="tile-k">Audit code · seed</div><div id="k-audit" class="tile-v text-indigo-300 font-mono text-[15px]">—</div></div>
+      </div>
+      <div id="mail-result" class="hidden mt-3 text-[12px]"></div>
+
+      <!-- failures -->
+      <div id="failures" class="hidden mt-5">
+        <div class="section-title mb-2">What failed</div>
+        <ul id="failure-list" class="space-y-1.5"></ul>
+      </div>
+    </div>
+
+    <!-- live log -->
+    <div class="card p-0 overflow-hidden">
+      <div class="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-white/5">
+        <span class="term-dots"><span></span><span></span><span></span></span>
+        <span class="font-semibold text-[13px]">Live log</span>
+        <div class="ml-2 flex gap-1" id="log-filters">
+          <button class="chip chip-on" data-filter="all">All</button>
+          <button class="chip" data-filter="steps">Steps</button>
+          <button class="chip" data-filter="tests">Tests</button>
+          <button class="chip" data-filter="errors">Errors</button>
+        </div>
+        <div class="ml-auto flex items-center gap-2">
+          <label class="text-[11px] text-slate-400 flex items-center gap-1.5"><input id="autoscroll" type="checkbox" checked class="accent-indigo-500"> autoscroll</label>
+          <button id="clear-btn" class="btn btn-ghost">Clear</button>
+        </div>
+      </div>
+      <pre id="log-output" class="log">Waiting for a run…</pre>
+    </div>
+
+    <!-- history -->
+    <div class="card">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="section-title">Run history</h2>
+        <button id="history-clear" class="btn btn-ghost">Clear history</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-[12px]">
+          <thead class="text-slate-500 text-left">
+            <tr><th class="th">When</th><th class="th">Suite</th><th class="th">Result</th><th class="th">Tests</th><th class="th">Duration</th><th class="th">Audit</th><th class="th"></th></tr>
+          </thead>
+          <tbody id="history-body"><tr><td colspan="7" class="td text-slate-600">No runs recorded yet.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="mx-auto max-w-[1500px] px-5 pb-8 pt-2">
+  <div class="footer">
+    <div class="footer-left">
+      <span class="author-avatar">SI</span>
+      <div>
+        <div class="text-[13px] font-semibold text-slate-200">Built by Samiul Islam <span class="text-slate-500 font-normal">· Junior SQA</span></div>
+        <div class="text-[11px] text-slate-500">POS test automation framework — exe (pywinauto) · web (Playwright) · SQL Server verification · Allure</div>
+      </div>
+    </div>
+    <div class="text-[11px] text-slate-600 font-mono">Retail POS · Automation Console</div>
+  </div>
+</footer>
+
+<!-- ============ audit options modal ============ -->
+<div id="audit-modal" class="modal hidden">
+  <div class="modal-card">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <div class="font-bold text-lg">Supplier-wise Audit</div>
+        <div class="text-[12px] text-slate-400 mt-1">One login, whole chain: data → audit setup (one scope row per supplier) → approve → exe scan + Fn+F1 → report per supplier → Allure.</div>
+      </div>
+      <button id="audit-close" class="btn btn-ghost">✕</button>
+    </div>
+
+    <div class="mt-5 grid gap-3 sm:grid-cols-3">
+      <label class="opt"><input type="radio" name="audit-mode" value="build" checked>
+        <span><b>Build fresh data</b><small>3&ndash;5 suppliers &middot; 8&ndash;10 items each &middot; direct receive &middot; ~25 min</small></span></label>
+      <label class="opt"><input type="radio" name="audit-mode" value="reuse">
+        <span><b>Reuse existing data</b><small>audit an environment an earlier run already built &middot; ~8 min</small></span></label>
+      <label class="opt"><input type="radio" name="audit-mode" value="resume">
+        <span><b>Resume a build</b><small>suppliers exist, items incomplete &mdash; carry on from Item Profile</small></span></label>
+    </div>
+
+    <div class="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+      <label class="block text-[12px] text-slate-400">Environment
+        <select id="audit-env-tag" class="select mt-1" disabled><option value="">loading…</option></select>
+      </label>
+      <label class="block text-[12px] text-slate-400">Seed <span class="text-slate-600">(optional, replay)</span>
+        <input id="audit-seed" class="select mt-1 w-32" placeholder="random" inputmode="numeric">
+      </label>
+    </div>
+
+    <label class="opt mt-4"><input type="checkbox" id="audit-headed" checked>
+      <span><b>Watch the browser</b><small>headed mode — the POS exe is always visible anyway</small></span></label>
+
+    <div class="mt-6 flex items-center justify-end gap-2">
+      <button id="audit-cancel" class="btn btn-ghost">Cancel</button>
+      <button id="audit-start" class="btn btn-primary">▶ Start full audit</button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

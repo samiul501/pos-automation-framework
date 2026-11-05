@@ -1,0 +1,69 @@
+#!/bin/sh
+# Stops a commit that would publish a credential or a huge file.
+#
+# This hook is versioned so everyone gets it. Turn it on once per clone:
+#     git config core.hooksPath .githooks
+#
+# To commit something it refuses on purpose:  git commit --no-verify
+
+fail=0
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+say() { printf '%s\n' "$*" >&2; }
+
+# ---- 1. files that must never be committed -------------------------------
+for f in $staged; do
+  case "$f" in
+    .env|*/.env|*.env.local|*/token.json|*/state.json|*/storage_state.json)
+      say "BLOCKED  $f  - this file holds credentials"
+      fail=1 ;;
+    *.pfx|*.p12|*.pem|*.key|id_rsa*)
+      say "BLOCKED  $f  - this looks like a private key"
+      fail=1 ;;
+  esac
+done
+
+# ---- 2. credentials pasted into source ------------------------------------
+# Narrow on purpose: an assignment with a real-looking literal value. The
+# second pass then drops the things that look like one but are not - CSS
+# selectors, function parameters, and values read from the environment.
+pattern='(password|passwd|pwd)[[:space:]]*[=:][[:space:]]*["'"'"'][^"'"'"']{4,}|Password=[^;"'"'"' ]{4,}|company@[^[:space:]"'"'"']+|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}'
+
+# not a credential: read from the environment, a selector, a parameter
+# default, a placeholder, or this hook's own pattern
+innocent='getenv|environ|os\.getenv|["'"'"'][#.][A-Za-z_-]|=[[:space:]]*None|passwd\)|password\)|<set>|\.\.\.|your[_-]?password|xxxx|\$\{|%s|\{\}'
+
+for f in $staged; do
+  case "$f" in
+    *.env.example|.githooks/*|.github/workflows/*|*.md) continue ;;
+  esac
+  [ -f "$f" ] || continue
+  hits=$(git show ":$f" 2>/dev/null \
+         | grep -nEi "$pattern" \
+         | grep -vEi "$innocent" \
+         | head -3)
+  if [ -n "$hits" ]; then
+    say "BLOCKED  $f  - looks like a hard-coded credential:"
+    printf '%s\n' "$hits" | sed 's/^/           /' >&2
+    fail=1
+  fi
+done
+
+# ---- 3. files too large to belong in git ----------------------------------
+for f in $staged; do
+  [ -f "$f" ] || continue
+  size=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+  if [ "$size" -gt 20971520 ]; then
+    say "BLOCKED  $f  - $((size / 1048576)) MB. Keep large files out of git."
+    fail=1
+  fi
+done
+
+if [ "$fail" -ne 0 ]; then
+  say ""
+  say "Commit stopped. Put secrets in .env (ignored) and keep .env.example"
+  say "as the template. If this is a false alarm: git commit --no-verify"
+  exit 1
+fi
+exit 0

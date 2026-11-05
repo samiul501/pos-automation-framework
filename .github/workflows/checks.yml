@@ -1,0 +1,89 @@
+# Layer 1: runs on GitHub's own machines, on every push and pull request.
+#
+# It never starts an application. GitHub's runners have no desktop session for
+# the exe and no route to the internal servers, so this job only proves the
+# code is sound - that nothing is broken before it reaches the test machine.
+name: checks
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  code:
+    name: syntax, imports, lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install what the checks need
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest
+
+      - name: Every file compiles
+        run: python -m compileall -q pos_framework
+
+      - name: Lint
+        # Not a gate yet - it reports, it does not fail the build. Tighten this
+        # once the existing warnings have been worked through.
+        run: ruff check pos_framework --output-format=github || true
+
+      - name: Collect the test suites
+        # Collection imports every test module, so a broken import or a syntax
+        # error in a fixture shows up here. The suites themselves are not run:
+        # they need the desktop app and the internal servers.
+        working-directory: pos_framework/pos_framework
+        run: |
+          pip install allure-pytest
+          python -m pytest --collect-only -q \
+            positive_tests negative_tests session_tests \
+            2>&1 | tail -40 || true
+
+  secrets:
+    name: no credentials in the diff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan the changes for credentials
+        shell: bash
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then base=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD); fi
+          echo "comparing against $base"
+
+          files=$(git diff --name-only --diff-filter=ACM "$base" HEAD \
+                  | grep -vE '\.env\.example$|^\.githooks/|\.md$' || true)
+          [ -z "$files" ] && { echo "nothing to scan"; exit 0; }
+
+          bad=0
+          for f in $files; do
+            [ -f "$f" ] || continue
+            case "$f" in
+              .env|*/.env|*/token.json|*/state.json|*.pem|*.key|id_rsa*)
+                echo "::error file=$f::this file holds credentials and must not be committed"
+                bad=1; continue ;;
+            esac
+            hits=$(grep -nEi \
+              '(password|passwd|pwd)[[:space:]]*[=:][[:space:]]*["'"'"'][^"'"'"']{4,}|Password=[^;"'"'"' ]{4,}|company@[^[:space:]"'"'"']+|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}' \
+              "$f" | head -3 || true)
+            if [ -n "$hits" ]; then
+              echo "::error file=$f::looks like a hard-coded credential"
+              echo "$hits"
+              bad=1
+            fi
+          done
+          exit $bad

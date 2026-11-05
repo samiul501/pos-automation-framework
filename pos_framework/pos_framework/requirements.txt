@@ -1,0 +1,11 @@
+# POS exe automation
+pywinauto
+pytest
+allure-pytest
+
+# Backend web report verification (playwright install chromium after pip install)
+playwright
+
+# Read-only SQL Server access for test-data validation (db_helpers.py).
+# Needs the "ODBC Driver 18 for SQL Server" system driver installed.
+pyodbc
