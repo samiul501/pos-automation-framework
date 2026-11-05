@@ -6,7 +6,6 @@
 desktop app, back-office web app and SQL Server, checked against each other.**
 
 [![checks](https://github.com/samiul501/pos-automation-framework/actions/workflows/checks.yml/badge.svg)](https://github.com/samiul501/pos-automation-framework/actions/workflows/checks.yml)
-[![release](https://img.shields.io/github/v/release/samiul501/pos-automation-framework)](https://github.com/samiul501/pos-automation-framework/releases)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![pytest](https://img.shields.io/badge/pytest-test%20runner-0A9EDC?logo=pytest&logoColor=white)
 ![pywinauto](https://img.shields.io/badge/pywinauto-desktop%20UI-5C2D91)
